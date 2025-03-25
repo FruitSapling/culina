@@ -23,6 +23,12 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Add this near the top of your routes in server.js:
+app.get("/ping", (req, res) => {
+  console.log("Ping endpoint hit");
+  res.json({ message: "pong" });
+});
+
 // New endpoint to securely fetch an image from Pexels based on an ingredient name
 app.get("/images", async (req, res) => {
   const ingredient = req.query.ingredient;
