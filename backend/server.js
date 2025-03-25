@@ -8,6 +8,15 @@ import axios from "axios";
 dotenv.config();
 
 const app = express();
+// Allow all origins (or replace "*" with your specific origin if desired)
+const corsOptions = {
+  origin: "*",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
+
 const port = process.env.PORT || 3000;
 
 app.use(cors());
