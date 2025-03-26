@@ -4,6 +4,8 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
+import { staticChatResponse } from "./staticChatResponse.js"; // Include the .js extension
+
 
 dotenv.config();
 
@@ -22,6 +24,10 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Read toggle for using Gemini from an environment variable.
+// When running locally, you can set this in a .env file.
+const useGemini = process.env.USE_GEMINI === "true";
 
 // Add this near the top of your routes in server.js:
 app.get("/ping", (req, res) => {
@@ -69,6 +75,14 @@ app.post("/chat", async (req, res) => {
   const prompt = `You are Culina, a friendly cooking helper chatbot. Your responses must always be appropriate for a cooking helper, offering recipe recommendations, cooking tips, and guidance based on the user's available ingredients. The user's current inventory is: ${inventoryText}. Based on that, answer the following question: ${userMessage}`;
 
   console.log("Using prompt:", prompt);
+
+  // If not using Gemini (for debugging), return a static response:
+  if (!useGemini) {
+    return res.json({
+      response:
+        staticChatResponse,
+    });
+  }
 
   try {
     const response = await axios.post(
