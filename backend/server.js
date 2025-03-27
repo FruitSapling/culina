@@ -16,12 +16,11 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 const port = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Toggle using Gemini from .env
+// Toggle for using Gemini (set USE_GEMINI=true in your .env file)
 const useGemini = process.env.USE_GEMINI === "true";
 
 app.get("/ping", (req, res) => {
@@ -29,48 +28,73 @@ app.get("/ping", (req, res) => {
   res.json({ message: "pong" });
 });
 
-// /chat endpoint updated to use conversation history
+// Example endpoint to fetch an image from Pexels (unchanged)
+app.get("/images", async (req, res) => {
+  const ingredient = req.query.ingredient;
+  if (!ingredient) {
+    return res.status(400).json({ error: "Missing 'ingredient' query parameter." });
+  }
+  try {
+    const response = await axios.get(
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(ingredient)}&per_page=1`,
+      {
+        headers: { Authorization: process.env.PEXELS_API_KEY },
+      }
+    );
+    const data = response.data;
+    if (data.photos && data.photos.length > 0) {
+      const imageUrl = data.photos[0].src.medium;
+      return res.json({ imageUrl });
+    } else {
+      return res.json({ imageUrl: "https://via.placeholder.com/60?text=No+Image" });
+    }
+  } catch (error) {
+    console.error("Error fetching image from Pexels:", error.message);
+    return res.status(500).json({ error: "Failed to fetch image." });
+  }
+});
+
+// Updated /chat endpoint that uses conversation history without any "system" role
 app.post("/chat", async (req, res) => {
   const userMessage = req.body.message;
   const historyFromClient = req.body.history || [];
   const inventory = req.body.inventory || "none";
   const inventoryText = JSON.stringify(inventory, null, 2);
 
-  // Map the history to Gemini's expected format:
-  const convertedHistory = historyFromClient.map((msg) => {
-    return {
-      role: msg.sender === "user" ? "user" : "model",
-      parts: [{ text: msg.text }],
-    };
-  });
+  // Convert the client history to the expected format (only "user" and "model" roles)
+  const convertedHistory = historyFromClient.map((msg) => ({
+    role: msg.sender === "user" ? "user" : "model",
+    parts: [{ text: msg.text }],
+  }));
 
-  // Append the current user message (if not already in history)
-  // In our client code we already include it, but you can double-check or merge as needed.
-  // For this example, assume it’s included.
+  // Prepare the instruction text (guidance for the chatbot)
+  const instructionText = `You are Culina, a friendly cooking helper chatbot. Use the user's inventory: ${inventoryText} to guide your responses. Prefer recipes that are a bit funky and interesting and non-standard.`;
+  
+  // Embed the instruction directly into the user's current message.
+  const finalUserMessage = instructionText + userMessage;
 
-  // Add a system instruction for context:
-  const systemInstruction = {
-    role: "system",
-    parts: [{
-      text: `You are Culina, a friendly cooking helper chatbot. Use the user's inventory: ${inventoryText} to guide your responses.`,
-    }],
-  };
+  // Update the conversation history: replace the last user message (if any) with the finalUserMessage,
+  // or append it if no user message is present.
+  if (convertedHistory.length > 0 && convertedHistory[convertedHistory.length - 1].role === "user") {
+    convertedHistory[convertedHistory.length - 1].parts[0].text = finalUserMessage;
+  } else {
+    convertedHistory.push({
+      role: "user",
+      parts: [{ text: finalUserMessage }],
+    });
+  }
 
-  // Build the payload that includes the system instruction and conversation history:
+  // Build the payload for Gemini.
   const payload = {
-    contents: [
-      systemInstruction,
-      ...convertedHistory,
-    ],
+    contents: convertedHistory,
     generationConfig: {
-      maxOutputTokens: 150,
+      maxOutputTokens: 500,
       temperature: 0.7,
     },
   };
 
   console.log("Using payload:", JSON.stringify(payload, null, 2));
 
-  // If not using Gemini, return a static response:
   if (!useGemini) {
     return res.json({ response: staticChatResponse });
   }
@@ -81,7 +105,7 @@ app.post("/chat", async (req, res) => {
       payload,
       { headers: { "Content-Type": "application/json" } }
     );
-    console.log("API response:", JSON.stringify(response.data, null, 2));
+    console.log("Gemini API response:", JSON.stringify(response.data, null, 2));
 
     if (
       response.data &&
