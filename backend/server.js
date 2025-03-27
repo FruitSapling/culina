@@ -96,6 +96,8 @@ app.post("/chat", async (req, res) => {
   console.log("Using payload:", JSON.stringify(payload, null, 2));
 
   if (!useGemini) {
+    // Simulate a 1.5-second delay so the front-end can show the "thinking..." indicator.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     return res.json({ response: staticChatResponse });
   }
 
