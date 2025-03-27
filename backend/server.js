@@ -68,7 +68,7 @@ app.post("/chat", async (req, res) => {
   }));
 
   // Prepare the instruction text (guidance for the chatbot)
-  const instructionText = `You are Culina, a friendly cooking helper chatbot. Use the user's inventory: ${inventoryText} to guide your responses. Prefer recipes that are a bit funky and interesting and non-standard.`;
+  const instructionText = `You are Culina, a friendly cooking helper chatbot. Use the user's inventory: ${inventoryText} to guide your responses. Prefer recipes that are a bit funky and interesting and non-standard. Don't be cringey in your responses, british tone, concise answers.`;
   
   // Embed the instruction directly into the user's current message.
   const finalUserMessage = instructionText + userMessage;
@@ -88,7 +88,7 @@ app.post("/chat", async (req, res) => {
   const payload = {
     contents: convertedHistory,
     generationConfig: {
-      maxOutputTokens: 500,
+      maxOutputTokens: 1000,
       temperature: 0.7,
     },
   };
