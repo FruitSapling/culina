@@ -12,15 +12,16 @@ import {
   Button,
   Modal,
   TextInput,
+  Alert,
+  ScrollView,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useInventory, Ingredient } from "./InventoryContext";
-import { API_BASE_URL } from "../config"; // Import the base URL
+import { API_BASE_URL } from "../config";
 
 async function fetchImageUrl(query: string): Promise<string> {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/images?ingredient=${encodeURIComponent(query)}` // Use the base URL
-    );
+    const response = await fetch(`${API_BASE_URL}/images?ingredient=${encodeURIComponent(query)}`);
     const data = await response.json();
     return data.imageUrl || "https://via.placeholder.com/60?text=No+Image";
   } catch (error) {
@@ -29,17 +30,32 @@ async function fetchImageUrl(query: string): Promise<string> {
   }
 }
 
+async function fetchIngredientsFromImage(base64Image: string, mimeType: string): Promise<string[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ingredients-from-image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base64Image, mimeType }),
+    });
+
+    const data = await response.json();
+    return data.ingredients || [];
+  } catch (err) {
+    console.error("Error sending image to server:", err);
+    return [];
+  }
+}
+
 export default function InventoryScreen() {
   const { inventory, setInventory } = useInventory();
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [modalVisible, setModalVisible] = useState<boolean>(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState<boolean>(false);
   const [newIngredientName, setNewIngredientName] = useState<string>("");
-  const [newIngredientCategory, setNewIngredientCategory] = useState<
-    "Fridge" | "Freezer" | "Pantry"
-  >("Pantry");
+  const [newIngredientCategory, setNewIngredientCategory] = useState<"Fridge" | "Freezer" | "Pantry">("Pantry");
+  const [reviewList, setReviewList] = useState<{ id: string; name: string }[]>([]);
 
-  // Fetch images for all ingredients once on mount
   useEffect(() => {
     async function updateImages() {
       const updatedData = await Promise.all(
@@ -64,9 +80,7 @@ export default function InventoryScreen() {
   };
 
   const deleteSelected = () => {
-    setInventory((prev) =>
-      prev.filter((ingredient) => !selectedIds.includes(ingredient.id))
-    );
+    setInventory((prev) => prev.filter((ingredient) => !selectedIds.includes(ingredient.id)));
     setSelectedIds([]);
   };
 
@@ -89,6 +103,76 @@ export default function InventoryScreen() {
     });
   };
 
+  const scanPantry = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission denied", "Camera access is required to scan your pantry.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      base64: true,
+      quality: 0.7,
+    });
+
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    setLoading(true);
+    const { base64 } = result.assets[0];
+    const mimeType = "image/jpeg";
+    const base64Image = `data:${mimeType};base64,${base64}`;
+
+    const ingredients = await fetchIngredientsFromImage(base64Image, mimeType);
+    const uniqueIngredients = ingredients.filter(
+      (name) => !inventory.some((i) => i.name.toLowerCase() === name)
+    );
+
+    if (uniqueIngredients.length === 0) {
+      Alert.alert("No new ingredients found", "Try a clearer image or different angle.");
+      setLoading(false);
+      return;
+    }
+
+    // Store for review modal
+    const review = uniqueIngredients.map((name, i) => ({
+      id: (Date.now() + i).toString(),
+      name,
+    }));
+    setReviewList(review);
+    setReviewModalVisible(true);
+    setLoading(false);
+  };
+
+  const confirmReviewList = async () => {
+    setLoading(true);
+    const newItems: Ingredient[] = await Promise.all(
+      reviewList.map(async (item, idx) => {
+        const image = await fetchImageUrl(item.name);
+        return {
+          id: (inventory.length + idx + 1).toString(),
+          name: item.name,
+          image,
+          category: "Pantry",
+        };
+      })
+    );
+    setInventory((prev) => [...prev, ...newItems]);
+    setReviewList([]);
+    setReviewModalVisible(false);
+    setLoading(false);
+  };
+
+  const updateReviewName = (id: string, name: string) => {
+    setReviewList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, name } : item))
+    );
+  };
+
+  const removeFromReview = (id: string) => {
+    setReviewList((prev) => prev.filter((item) => item.id !== id));
+  };
+
   const renderItem = ({ item }: { item: Ingredient }) => {
     const isSelected = selectedIds.includes(item.id);
     return (
@@ -97,9 +181,7 @@ export default function InventoryScreen() {
         style={[styles.itemContainer, isSelected && styles.selectedItem]}
       >
         <Image
-          source={{
-            uri: item.image || "https://via.placeholder.com/60?text=No+Image",
-          }}
+          source={{ uri: item.image || "https://via.placeholder.com/60?text=No+Image" }}
           style={styles.itemImage}
         />
         <Text style={styles.itemName}>{item.name}</Text>
@@ -111,20 +193,21 @@ export default function InventoryScreen() {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#56ab2f" />
-        <Text style={styles.loadingText}>Loading inventory images...</Text>
+        <Text style={styles.loadingText}>Processing...</Text>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with management buttons */}
       <View style={styles.header}>
         <Button title="Add Ingredient" onPress={() => setModalVisible(true)} />
+        <Button title="Scan Pantry" onPress={scanPantry} />
         {selectedIds.length > 0 && (
           <Button title="Delete Selected" onPress={deleteSelected} color="red" />
         )}
       </View>
+
       <FlatList
         data={inventory}
         renderItem={renderItem}
@@ -132,7 +215,8 @@ export default function InventoryScreen() {
         numColumns={3}
         contentContainerStyle={styles.listContainer}
       />
-      {/* Modal for adding new ingredient */}
+
+      {/* Manual Add Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
@@ -168,6 +252,40 @@ export default function InventoryScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Review Modal */}
+      <Modal visible={reviewModalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Review Detected Ingredients</Text>
+            <ScrollView style={{ maxHeight: 300, marginBottom: 12 }}>
+              {reviewList.map((item) => (
+                <View key={item.id} style={styles.reviewItem}>
+                  <TextInput
+                    style={styles.input}
+                    value={item.name}
+                    onChangeText={(text) => updateReviewName(item.id, text)}
+                  />
+                  <Button title="Remove" color="red" onPress={() => removeFromReview(item.id)} />
+                </View>
+              ))}
+              {reviewList.length === 0 && (
+                <Text style={{ textAlign: "center", color: "#999", padding: 8 }}>
+                  No items to review.
+                </Text>
+              )}
+            </ScrollView>
+            <View style={styles.modalButtons}>
+              <Button title="Cancel" onPress={() => setReviewModalVisible(false)} />
+              <Button
+                title="Confirm"
+                onPress={confirmReviewList}
+                disabled={reviewList.length === 0}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -178,6 +296,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 16,
+    gap: 8,
   },
   listContainer: { paddingBottom: 100 },
   itemContainer: {
@@ -222,11 +341,12 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: "#fff", borderRadius: 12, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 12 },
   input: {
+    flex: 1,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 8,
     padding: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   categoryContainer: {
     flexDirection: "row",
@@ -242,5 +362,10 @@ const styles = StyleSheet.create({
   selectedCategoryButton: { borderColor: "#56ab2f", backgroundColor: "#e6f7e6" },
   categoryText: { fontSize: 14 },
   modalButtons: { flexDirection: "row", justifyContent: "space-between" },
+  reviewItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
 });
-
