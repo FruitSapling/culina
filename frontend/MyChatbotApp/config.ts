@@ -1,5 +1,5 @@
 // Toggle between using your local server or Render's URL
-export const USE_LOCAL_BACKEND = true; // set to false to use Render
+export const USE_LOCAL_BACKEND = false; // set to false to use Render
 
 // Set the API base URL based on your toggle.
 // When testing locally, replace <YOUR_LOCAL_IP> with your computer's local IP address.
