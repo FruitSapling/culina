@@ -12,17 +12,23 @@ export type Ingredient = {
 type InventoryContextType = {
   inventory: Ingredient[];
   setInventory: React.Dispatch<React.SetStateAction<Ingredient[]>>;
+  selectedCategory: "All" | "Fridge" | "Freezer" | "Pantry";
+  setSelectedCategory: React.Dispatch<React.SetStateAction<"All" | "Fridge" | "Freezer" | "Pantry">>;
 };
+
 
 const InventoryContext = createContext<InventoryContextType>({
   inventory: [],
   setInventory: () => {},
+  selectedCategory: "All",
+  setSelectedCategory: () => {},
 });
 
 export const useInventory = () => useContext(InventoryContext);
 
 export const InventoryProvider = ({ children }: { children: React.ReactNode }) => {
   const [inventory, setInventory] = useState<Ingredient[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<"All" | "Fridge" | "Freezer" | "Pantry">("All");
 
   // Load inventory from AsyncStorage when the app starts
   useEffect(() => {
@@ -53,7 +59,7 @@ export const InventoryProvider = ({ children }: { children: React.ReactNode }) =
   }, [inventory]);
 
   return (
-    <InventoryContext.Provider value={{ inventory, setInventory }}>
+    <InventoryContext.Provider value={{ inventory, setInventory, selectedCategory, setSelectedCategory }}>
       {children}
     </InventoryContext.Provider>
   );
