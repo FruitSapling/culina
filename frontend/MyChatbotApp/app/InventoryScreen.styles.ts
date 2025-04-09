@@ -61,6 +61,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: theme.spacing.md,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   input: {
     flex: 1,
     borderWidth: 1,

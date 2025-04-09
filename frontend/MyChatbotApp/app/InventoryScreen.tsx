@@ -53,6 +53,8 @@ export default function InventoryScreen() {
   const [selectMode, setSelectMode] = useState(false);
   const [reviewList, setReviewList] = useState<{ id: string; name: string }[]>([]);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
 
   useEffect(() => {
     async function updateImages() {
@@ -116,6 +118,8 @@ export default function InventoryScreen() {
     const mimeType = "image/jpeg";
     const base64Image = `data:${mimeType};base64,${base64}`;
 
+    setScanning(true);
+
     try {
       const response = await fetch(`${API_BASE_URL}/ingredients-from-image`, {
         method: "POST",
@@ -140,6 +144,8 @@ export default function InventoryScreen() {
     } catch (error) {
       console.error("Scan error:", error);
       Alert.alert("Scan failed", "Try again later.");
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -212,15 +218,6 @@ export default function InventoryScreen() {
       </TouchableOpacity>
     );
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00C47C" />
-        <Text style={styles.loadingText}>Processing...</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -380,6 +377,18 @@ export default function InventoryScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Scanning Modal */}
+      <Modal visible={scanning} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={{ marginTop: 16, fontSize: 16, color: "#333" }}>
+              Scanning ingredients...
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

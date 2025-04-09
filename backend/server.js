@@ -68,7 +68,7 @@ app.post("/ingredients-from-image", async (req, res) => {
       {
         parts: [
           {
-            text: "List all food ingredients you see in this photo. Respond with a comma-separated list.",
+            text: "List all food ingredients you see in this photo. Respond with a comma-separated list. No sentences, just words like carrots, potatoes, tinned tomatoes",
           },
           {
             inlineData: {
