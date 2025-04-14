@@ -1,8 +1,8 @@
-// components/ChatMessage.tsx
 import React from "react";
-import { TouchableOpacity, View, Text } from "react-native";
+import { TouchableOpacity, View, Text, Image, StyleSheet } from "react-native";
 import Markdown from "react-native-markdown-display";
 import styles, { markdownStyles } from "../ChatScreen.styles";
+import { theme } from "../theme";
 
 type ChatMessageProps = {
   message: {
@@ -13,18 +13,20 @@ type ChatMessageProps = {
   onExpand?: (text: string) => void;
 };
 
+const CULINA_ICON = require("../../assets/images/culina-logo-no-text.png");
+
 export default function ChatMessage({ message, onExpand }: ChatMessageProps) {
   const isBot = message.sender === "bot";
 
   return (
     <View
-      style={{
-        flexDirection: "row",
-        justifyContent: isBot ? "flex-start" : "flex-end",
-        paddingHorizontal: 12,
-        marginBottom: 8,
-      }}
+      style={[
+        localStyles.messageRow,
+        { justifyContent: isBot ? "flex-start" : "flex-end" },
+      ]}
     >
+      {isBot && <Image source={CULINA_ICON} style={localStyles.avatar} />}
+
       <View
         style={[
           styles.bubble,
@@ -32,7 +34,6 @@ export default function ChatMessage({ message, onExpand }: ChatMessageProps) {
           { flexShrink: 1, maxWidth: "85%" },
         ]}
       >
-        <Text style={styles.senderLabel}>{isBot ? "Culina:" : "You:"}</Text>
         <TouchableOpacity
           disabled={!isBot}
           onPress={() => onExpand?.(message.text)}
@@ -45,3 +46,19 @@ export default function ChatMessage({ message, onExpand }: ChatMessageProps) {
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  messageRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 8,
+    resizeMode: "contain",
+  },
+});

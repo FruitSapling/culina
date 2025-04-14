@@ -13,7 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import Animated, { FadeInUp, FadeOutDown } from "react-native-reanimated";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import styles from "./InventoryScreen.styles";
 import { useInventory, Ingredient } from "./InventoryContext";
 import { API_BASE_URL } from "../config";
@@ -46,7 +46,6 @@ function getCategoryStyle(category: Ingredient["category"]) {
 
 export default function InventoryScreen() {
   const { inventory, setInventory, selectedCategory } = useInventory();
-  const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editingItem, setEditingItem] = useState<Ingredient | null>(null);
   const [actionsVisible, setActionsVisible] = useState(false);
@@ -68,7 +67,6 @@ export default function InventoryScreen() {
         })
       );
       setInventory(updated);
-      setLoading(false);
     }
     updateImages();
   }, []);
@@ -228,7 +226,17 @@ export default function InventoryScreen() {
         <Text style={{ fontSize: 14, color: "#6b7280" }}>Manage your ingredients</Text>
       </View>
 
-      <LocationFilter />
+      <View
+        style={{
+          paddingHorizontal: theme.spacing.sm,
+          paddingBottom: theme.spacing.sm,
+          paddingTop: 4,
+          alignItems: "flex-start",
+        }}
+      >
+        <LocationFilter />
+      </View>
+
 
       <TouchableOpacity
         onPress={() => setSelectMode(!selectMode)}
@@ -240,7 +248,7 @@ export default function InventoryScreen() {
       </TouchableOpacity>
 
       {selectMode && selectedIds.length > 0 && (
-        <Animated.View entering={FadeInUp} exiting={FadeOutDown} style={{ marginBottom: theme.spacing.sm }}>
+        <Animated.View entering={FadeIn} exiting={FadeOut} style={{ marginBottom: theme.spacing.sm }}>
           <Button title="Delete Selected" danger onPress={deleteSelected} />
         </Animated.View>
       )}
@@ -338,12 +346,16 @@ export default function InventoryScreen() {
         <View style={{ position: "absolute", right: 20, bottom: 32, alignItems: "flex-end" }}>
           <Animated.View style={{ overflow: "hidden" }}>
             {actionsVisible && (
-              <Animated.View entering={FadeInUp} exiting={FadeOutDown} style={{ marginBottom: 12, width: 180 }}>
+              <Animated.View entering={FadeIn} exiting={FadeOut} style={{ marginBottom: 12, width: 180 }}>
                 <Button title="📷 Scan ingredients" onPress={handleScanPantry} />
               </Animated.View>
             )}
             {actionsVisible && (
-              <Animated.View entering={FadeInUp.delay(50)} exiting={FadeOutDown} style={{ marginBottom: 12, width: 180 }}>
+              <Animated.View
+                entering={FadeIn.duration(200).springify().damping(15).stiffness(150)}
+                exiting={FadeOut.duration(150)}
+                style={{ marginBottom: 12, width: 180 }}
+              >
                 <Button
                   title="Add ingredient"
                   onPress={() => {
